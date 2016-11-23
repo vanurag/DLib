@@ -57,7 +57,7 @@ if(BUILD_DVision)
     ${HDRS})
   set(SRCS
     src/DVision/FSolver.cpp        src/DVision/ImageFunctions.cpp src/DVision/PLYFile.cpp
-    src/DVision/PatchFile.cpp      #src/DVision/SurfSet.cpp
+    src/DVision/PatchFile.cpp      src/DVision/SurfSet.cpp
     src/DVision/BundleCamera.cpp   src/DVision/HSolver.cpp        src/DVision/Matches.cpp        src/DVision/PMVSCamera.cpp     
     src/DVision/PixelPointFile.cpp
     ${SRCS})
