@@ -29,9 +29,10 @@
 #ifndef __D_BRIEF__
 #define __D_BRIEF__
 
-#include <opencv2/core.hpp>
+#include <opencv2/core/core.hpp>
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
+#include <opencv2/nonfree/features2d.hpp>
 
 namespace DVision {
 

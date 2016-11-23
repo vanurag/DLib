@@ -17,8 +17,8 @@
 #ifndef __D_SURF_SET__
 #define __D_SURF_SET__
 
-#include <opencv2/core.hpp>
-#include <opencv2/features2d.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 #include <vector>
 #include <string>
 
