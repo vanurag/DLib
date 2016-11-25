@@ -79,24 +79,17 @@ if(WIN32)
   set(LIB_SHARED "STATIC")
 endif(WIN32)
 
-include_directories(include/DUtils include/DUtilsCV include/DVision ${OpenCV_INCLUDE_DIRS})
+# catkin 
+find_package(catkin REQUIRED)
+
+catkin_package(
+	INCLUDE_DIRS include ${catkin_INCLUDE_DIRS}
+    LIBRARIES ${PROJECT_NAME}
+)
+
+include_directories(include/DUtils include/DUtilsCV include/DVision ${OpenCV_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 add_library(${PROJECT_NAME} ${LIB_SHARED} ${SRCS})
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${catkin_LIBRARIES})
 
 configure_file(src/DLib.cmake.in
   "${PROJECT_BINARY_DIR}/DLibConfig.cmake" @ONLY)
-
-install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
-if(BUILD_DUtils)
-  install(DIRECTORY include/DUtils DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-endif()
-if(BUILD_DUtilsCV)
-  install(DIRECTORY include/DUtilsCV DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-endif()
-if(BUILD_DVision)
-  install(DIRECTORY include/DVision DESTINATION ${CMAKE_INSTALL_PREFIX}/include)
-endif()
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/DLibConfig.cmake"
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/include/${PROJECT_NAME})
-install(FILES "${PROJECT_BINARY_DIR}/DLibConfig.cmake" 
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake/DLib/)
