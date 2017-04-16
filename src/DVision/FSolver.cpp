@@ -53,12 +53,13 @@ void FSolver::setImageSize(int cols, int rows)
 
 // ----------------------------------------------------------------------------
 
-bool FSolver::checkFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
+std::pair<cv::Mat, bool> FSolver::checkFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
     double reprojection_error, int min_points, double p, int max_its) const
 {
   cv::Mat F = findFundamentalMat(P1, P2, reprojection_error, min_points,
     NULL, false, p, max_its);
-  return !F.empty();
+//  std::cout << "FSolver F: " << F << std::endl;
+  return std::make_pair(F, !F.empty());
 }
     
 // ----------------------------------------------------------------------------
@@ -67,6 +68,8 @@ cv::Mat FSolver::findFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
   double reprojection_error, int min_points, 
   std::vector<uchar>* _status, bool compute_F, double p, int MAX_ITS) const
 {
+//  std::cout << "P1 " << P1.type() << "\n" << P1 << std::endl;
+//  std::cout << "P2 " << P2.type() << "\n" << P2 << std::endl;
   const int M = 8; // model points
   const double log1p = log(1-p);
   int N = (P1.rows > P1.cols ? P1.rows : P1.cols); // candidate points
@@ -133,9 +136,17 @@ cv::Mat FSolver::findFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
 
     // get model
     cv::Mat Fc = _computeF(Qc1, Qc2, i_model); // central coordinates
+//    std::cout << "computeF_ F: " << Fc << std::endl;
+//    cv::Mat chk1 = (Qc1.t() * Fc * Qc2).diag();
+//    cv::Mat chk2 = (Qc2.t() * Fc * Qc1).diag();
+//    cv::Mat chk3 = (Qc2.t() * Fc * Qc2).diag();
+//    std::cout << "computeF_ check0: " << chk1.size() << std::endl;
+//    std::cout << "computeF_ check1: " << cv::norm(chk1)/sqrt(N) << std::endl;
+//    std::cout << "computeF_ check2: " << cv::norm(chk2)/sqrt(N) << std::endl;
+//    std::cout << "computeF_ check3: " << cv::norm(chk3)/sqrt(N) << std::endl;
     // Fc12 s.t. lc1 = Fc12 * xc2
     
-    if(!Fc.empty())
+    if(!Fc.empty() && cv::checkRange(Fc))
     {
       // check error
       cv::Mat l1 = (m_N_t * Fc) * Qc2; // Qc2
@@ -214,6 +225,7 @@ cv::Mat FSolver::findFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
       cv::Mat Fc12 = _computeF(Qc1, Qc2, best_i);
       
       // denormalize
+      cv::Mat bla = m_N_t * Fc12 * m_N;
       if(!Fc12.empty()) return m_N_t * Fc12 * m_N;
     }
     else
@@ -287,8 +299,7 @@ void FSolver::normalizePoints(const cv::Mat &P, cv::Mat &Q) const
     cv::Mat aux;
     if(P.type() == CV_64F)
     {
-      aux = Q.rowRange(0,2);
-      P.rowRange(0,2).copyTo(aux);
+      Q.colRange(0,2) = P * 1;
     }
     else
     {

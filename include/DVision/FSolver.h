@@ -74,9 +74,9 @@ public:
    * @param min_points min number of required inliers
    * @param probability RANSAC success probability
    * @param max_its maximum number of RANSAC iterations 
-   * @return true iff some fundamental matrix is found
+   * @return Fundamental matrix and true iff some fundamental matrix is found
    */
-  bool checkFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
+  std::pair<cv::Mat, bool> checkFundamentalMat(const cv::Mat &P1, const cv::Mat &P2,
     double reprojection_error, int min_points = 9,
     double probability = 0.99, int max_its = 500) const;
 
