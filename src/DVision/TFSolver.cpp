@@ -183,13 +183,16 @@ cv::Mat_<double> TFSolver::IterativeLinearLSTriangulation(
 // ----------------------------------------------------------------------------
 
 //Triagulate points
-double TFSolver::TriangulatePoints(
+std::pair<double, double> TFSolver::TriangulatePoints(
     const cv::Mat& pt_set1, const cv::Mat& pt_set2,
+    const cv::Mat &pts1_depth, const cv::Mat &pts2_depth,
     const cv::Mat& K, const cv::Mat& Kinv, const cv::Mat& T1,
     const cv::Mat& T2, cv::Mat& pointcloud)
 {
   std::cout << "Triangulating..." << std::endl;
   std::vector<double> reproj_error;
+  double scale = 0.0;
+  int num_scale = 0; // num of estimates involved in evaluating scale
   unsigned int pts_size = pt_set1.rows;
 
   std::cout << "K, T1: " << K << "\n" << T1 << std::endl;
@@ -210,6 +213,18 @@ double TFSolver::TriangulatePoints(
 
     cv::Mat_<double> X = IterativeLinearLSTriangulation(u1, T1, u2, T2);
 
+    // estimate scale
+    cv::Mat_<double> xPt_i;
+    if (!pts1_depth.empty() && pts1_depth.at<double>(i) > 0) {
+      xPt_i = T1(cv::Rect(0,0,4,3)) * X;
+      scale = ( (num_scale * scale) + (xPt_i(2) / pts1_depth.at<double>(i)) ) / (num_scale + 1);
+    } else if (!pts2_depth.empty() && pts2_depth.at<double>(i) > 0) {
+      xPt_i = T2(cv::Rect(0,0,4,3)) * X;
+      scale = ( (num_scale * scale) + (xPt_i(2) / pts2_depth.at<double>(i)) ) / (num_scale + 1);
+    }
+    num_scale += 1;
+    std::cout << "curr scale estimate: " << scale << std::endl;
+
     cv::Mat_<double> xPt_img_2 = KT2 * X;       //reproject
     cv::Point2f xPt_img_2_(xPt_img_2(0)/xPt_img_2(2),xPt_img_2(1)/xPt_img_2(2));
 
@@ -226,6 +241,7 @@ double TFSolver::TriangulatePoints(
     pointcloud.at<double>(3,i) = 1.0;
 //    }
   }
+  std::cout << "final scale estimate [no. estimates]: " << scale << " [" << num_scale << "]" << std::endl;
 
   cv::Scalar mse = cv::mean(reproj_error);
   std::cout << "Done. ("<<pointcloud.size()<<"points, mean reproj err = " << mse[0] << ")"<< std::endl;
@@ -247,7 +263,7 @@ double TFSolver::TriangulatePoints(
   }
 #endif
 
-  return mse[0];
+  return std::make_pair(mse[0], scale);
 }
 
 // ----------------------------------------------------------------------------
@@ -276,7 +292,7 @@ bool TFSolver::TestTriangulation(
 // --------------------------------------------------------------------------
 
 cv::Mat TFSolver::findTFMat(
-    const cv::Mat &pts1, const cv::Mat &pts2,
+    const cv::Mat &pts1, const cv::Mat &pts2, const cv::Mat &pts2_depth,
     const cv::Mat &K, const cv::Mat &T1, const cv::Mat &F)
 {
   cv::Mat TF = cv::Mat::zeros(4, 4, CV_64F);
@@ -321,8 +337,8 @@ cv::Mat TFSolver::findTFMat(
 
   cv::Mat_<double> pcloud1(4, pts1.rows);
   cv::Mat_<double> pcloud2(4, pts2.rows);
-  double reproj_error1 = TriangulatePoints(pts1, pts2, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
-  double reproj_error2 = TriangulatePoints(pts2, pts1, K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
+  std::pair<double, double> tri_status1 = TriangulatePoints(pts1, pts2, cv::Mat(), pts2_depth, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
+  std::pair<double, double> tri_status2 = TriangulatePoints(pts2, pts1, pts2_depth, cv::Mat(), K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
   std::vector<uchar> tmp_status;
 
   std::cout << "pcl1: \n" << pcloud1 << std::endl;
@@ -331,7 +347,7 @@ cv::Mat TFSolver::findTFMat(
   TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status);
 
   //check if points are triangulated --in front-- of cameras for all 4 ambiguations
-  if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || reproj_error1 > 2.0 || reproj_error2 > 2.0) {
+  if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || tri_status1.first > 2.0 || tri_status2.first > 2.0) {
     // Case #2
     TF = (cv::Mat_<double>(4, 4) <<
         R1(0,0), R1(0,1),  R1(0,2),  t2(0),
@@ -340,15 +356,15 @@ cv::Mat TFSolver::findTFMat(
               0,       0,        0,      1);
     std::cout << std::endl << "Testing Case #2 "<< std::endl << cv::Mat(TF) << std::endl;
 
-    reproj_error1 = TriangulatePoints(pts1, pts2, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
-    reproj_error2 = TriangulatePoints(pts2, pts1, K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
+    tri_status1 = TriangulatePoints(pts1, pts2, cv::Mat(), pts2_depth, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
+    tri_status2 = TriangulatePoints(pts2, pts1, pts2_depth, cv::Mat(), K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
 
     std::cout << "pcl1: \n" << pcloud1 << std::endl;
     std::cout << "pcl2: \n" << pcloud2 << std::endl;
     TestTriangulation(pcloud1, TF, tmp_status);
     TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status);
 
-    if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || reproj_error1 > 2.0 || reproj_error2 > 2.0) {
+    if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || tri_status1.first > 2.0 || tri_status2.first > 2.0) {
       if (!CheckCoherentRotation(R2)) {
         std::cout << "resulting rotation R2 is not coherent\n";
         TF.setTo(0);
@@ -362,15 +378,15 @@ cv::Mat TFSolver::findTFMat(
                 0,       0,        0,      1);
       std::cout << std::endl << "Testing Case #3 "<< std::endl << cv::Mat(TF) << std::endl;
 
-      reproj_error1 = TriangulatePoints(pts1, pts2, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
-      reproj_error2 = TriangulatePoints(pts2, pts1, K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
+      tri_status1 = TriangulatePoints(pts1, pts2, cv::Mat(), pts2_depth, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
+      tri_status2 = TriangulatePoints(pts2, pts1, pts2_depth, cv::Mat(), K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
 
       std::cout << "pcl1: \n" << pcloud1 << std::endl;
       std::cout << "pcl2: \n" << pcloud2 << std::endl;
       TestTriangulation(pcloud1, TF, tmp_status);
       TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status);
 
-      if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || reproj_error1 > 2.0 || reproj_error2 > 2.0) {
+      if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || tri_status1.first > 2.0 || tri_status2.first > 2.0) {
         // Case #4
         TF = (cv::Mat_<double>(4, 4) <<
             R2(0,0), R2(0,1),  R2(0,2),  t2(0),
@@ -379,15 +395,15 @@ cv::Mat TFSolver::findTFMat(
                   0,       0,        0,      1);
         std::cout << std::endl << "Testing Case #4 "<< std::endl << cv::Mat(TF) << std::endl;
 
-        reproj_error1 = TriangulatePoints(pts1, pts2, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
-        reproj_error2 = TriangulatePoints(pts2, pts1, K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
+        tri_status1 = TriangulatePoints(pts1, pts2, cv::Mat(), pts2_depth, K, K.inv(), TF, cv::Mat::eye(4,4, CV_64F), pcloud1);
+        tri_status2 = TriangulatePoints(pts2, pts1, pts2_depth, cv::Mat(), K, K.inv(), cv::Mat::eye(4,4, CV_64F), TF, pcloud2);
 
         std::cout << "pcl1: \n" << pcloud1 << std::endl;
         std::cout << "pcl2: \n" << pcloud2 << std::endl;
         TestTriangulation(pcloud1, TF, tmp_status);
         TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status);
 
-        if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || reproj_error1 > 2.0 || reproj_error2 > 2.0) {
+        if (!TestTriangulation(pcloud1, TF, tmp_status) || !TestTriangulation(pcloud2, cv::Mat::eye(4,4, CV_64F), tmp_status) || tri_status1.first > 2.0 || tri_status2.first > 2.0) {
           std::cout << "None of the configurations worked." << std::endl;
           TF.setTo(0);
           return TF;
@@ -398,17 +414,26 @@ cv::Mat TFSolver::findTFMat(
   } // Case #1
 
   std::cout << "find TF mat TF: " << TF << std::endl;
-  std::cout << "find TF mat TF_inv: " << TF.inv() << std::endl;
-  std::cout << "find TF mat T1: " << T1 << std::endl;
-  if (T1.type() == CV_64F) {
-    std::cout << "find TF mat TF_inv * T1: " << TF.inv() * T1 << std::endl;
-    return TF.inv() * T1;
+  if (tri_status1.second > 0 && tri_status2.second > 0) {
+    // scaling
+    double scale = (tri_status1.second + tri_status2.second) / 2.0;
+    TF(cv::Rect(3,0,1,3)) /= scale;
+    std::cout << "find TF mat TF at scale: " << TF << std::endl;
+    std::cout << "find TF mat TF_inv: " << TF.inv() << std::endl;
+    std::cout << "find TF mat T1: " << T1 << std::endl;
+    if (T1.type() == CV_64F) {
+      std::cout << "find TF mat TF_inv * T1: " << TF.inv() * T1 << std::endl;
+      return TF.inv() * T1;
+    } else {
+      cv::Mat_<double> T1_d;
+      T1.convertTo(T1_d, CV_64F);
+      std::cout << "find TF mat T1_d: " << T1_d << std::endl;
+      std::cout << "find TF mat TF_inv * T1_d: " << TF.inv() * T1_d << std::endl;
+      return TF.inv() * T1_d;
+    }
   } else {
-    cv::Mat_<double> T1_d;
-    T1.convertTo(T1_d, CV_64F);
-    std::cout << "find TF mat T1_d: " << T1_d << std::endl;
-    std::cout << "find TF mat TF_inv * T1_d: " << TF.inv() * T1_d << std::endl;
-    return TF.inv() * T1_d;
+    TF.setTo(0);
+    return TF;
   }
 }
 

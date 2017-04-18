@@ -36,13 +36,14 @@ public:
   /**
    * Finds a TF matrix from the given Fundamental matrix
    * @param pts1,2 matched keypoints from image 1 and 2 respectively
+   * @param pts2_depth depth of matched keypoints in image 2
    * @param K intrinics of the camera
    * @param T1 pose of camera 1
    * @param F Fundamental matrix
    * @return T2 pose of camera 2
    */
   cv::Mat findTFMat(
-      const cv::Mat &pts1, const cv::Mat &pts2,
+      const cv::Mat &pts1, const cv::Mat &pts2, const cv::Mat &pts2_depth,
       const cv::Mat &K, const cv::Mat &T1,
       const cv::Mat &F);
 
@@ -84,8 +85,10 @@ protected:
       cv::Matx44d P1);
 
   //Triagulate points
-  double TriangulatePoints(
+  // returns reprojection error and scale of the scene
+  std::pair<double, double> TriangulatePoints(
       const cv::Mat& pt_set1, const cv::Mat& pt_set2,
+      const cv::Mat &pts1_depth, const cv::Mat &pts2_depth,
       const cv::Mat& K, const cv::Mat& Kinv, const cv::Mat& T1,
       const cv::Mat& T2, cv::Mat& pointcloud);
 
