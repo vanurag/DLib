@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
-project(DLib)
+project(dlib)
 
 option(BUILD_DUtils   "Build DUtils (basic c++ functions)." ON)
 option(BUILD_DUtilsCV "Build DUtilsCV (OpenCV functions, requires DUtils)." ON)
@@ -71,7 +71,7 @@ endif(BUILD_DVision)
 
 
 if(BUILD_DUtilsCV OR BUILD_DVision)
-  find_package(OpenCV REQUIRED)
+  find_package(OpenCV EXACT 2.4.11 REQUIRED)
 endif(BUILD_DUtilsCV OR BUILD_DVision)
 
 set(LIB_SHARED "SHARED")
@@ -92,4 +92,4 @@ add_library(${PROJECT_NAME} ${LIB_SHARED} ${SRCS})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${catkin_LIBRARIES})
 
 configure_file(src/DLib.cmake.in
-  "${PROJECT_BINARY_DIR}/DLibConfig.cmake" @ONLY)
+  "${PROJECT_BINARY_DIR}/dlibConfig.cmake" @ONLY)

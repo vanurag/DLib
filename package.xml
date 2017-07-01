@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>DLib</name>
+  <name>dlib</name>
   <version>0.0.0</version>
   <description>DLib_catkin</description>
   <maintainer email="avempati@ethz.ch">Anurag Vempati</maintainer>
@@ -8,4 +8,6 @@
   <license>See package</license>
 
   <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>opencv2_catkin</depend>
 </package>
