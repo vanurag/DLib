@@ -71,7 +71,7 @@ endif(BUILD_DVision)
 
 
 if(BUILD_DUtilsCV OR BUILD_DVision)
-  find_package(OpenCV EXACT 2.4.11 REQUIRED)
+  find_package(OpenCV REQUIRED COMPONENTS core highgui imgproc features2d)
 endif(BUILD_DUtilsCV OR BUILD_DVision)
 
 set(LIB_SHARED "SHARED")
@@ -80,7 +80,9 @@ if(WIN32)
 endif(WIN32)
 
 # catkin 
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+  cv_bridge
+)
 
 catkin_package(
 	INCLUDE_DIRS include ${catkin_INCLUDE_DIRS}
@@ -89,7 +91,7 @@ catkin_package(
 
 include_directories(include/DUtils include/DUtilsCV include/DVision ${OpenCV_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 add_library(${PROJECT_NAME} ${LIB_SHARED} ${SRCS})
-target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS} ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBRARIES} ${catkin_LIBRARIES})
 
 configure_file(src/DLib.cmake.in
   "${PROJECT_BINARY_DIR}/dlibConfig.cmake" @ONLY)

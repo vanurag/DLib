@@ -9,5 +9,5 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>opencv2_catkin</depend>
+  <depend>cv_bridge</depend>
 </package>

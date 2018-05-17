@@ -24,7 +24,6 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <opencv2/nonfree/nonfree.hpp>
 
 
 using namespace std;
@@ -120,13 +119,13 @@ void SurfSet::_ExtractUpright(const cv::Mat &image, double hessianTh, bool exten
 
 void SurfSet::extract(const cv::Mat &image, const SURFParams &params)
 {
-//  cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create(
-//        params.hessianThreshold, params.nOctaves, params.nOctaveLayers,
-//        params.extended, params.upright);
-
-  cv::Ptr<cv::SURF> surf(new cv::SURF(
+  cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create(
         params.hessianThreshold, params.nOctaves, params.nOctaveLayers,
-        params.extended, params.upright));
+        params.extended, params.upright);
+
+//  cv::Ptr<cv::SURF> surf(new cv::SURF(
+//        params.hessianThreshold, params.nOctaves, params.nOctaveLayers,
+//        params.extended, params.upright));
 
   cv::Mat descs;
   surf->detect(image, this->keys);
@@ -182,13 +181,13 @@ void SurfSet::compute(const cv::Mat &image,
   {
     this->keys = keypoints;
 
-//    cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create(
-//          params.hessianThreshold, params.nOctaves, params.nOctaveLayers,
-//          params.extended, params.upright);
-
-    cv::Ptr<cv::SURF> surf(new cv::SURF(
+    cv::Ptr<cv::xfeatures2d::SURF> surf = cv::xfeatures2d::SURF::create(
           params.hessianThreshold, params.nOctaves, params.nOctaveLayers,
-          params.extended, params.upright));
+          params.extended, params.upright);
+
+//    cv::Ptr<cv::SURF> surf(new cv::SURF(
+//          params.hessianThreshold, params.nOctaves, params.nOctaveLayers,
+//          params.extended, params.upright));
 
     cv::Mat descs;
     surf->compute(image, this->keys, descs);
